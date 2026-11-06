@@ -1,7 +1,7 @@
 
 import tempfile
 from pathlib import Path
-
+from app.services.anomaly_detector import detect_anomalies
 from fastapi import (
     APIRouter,
     Depends,
@@ -107,7 +107,7 @@ async def analyze_uploaded_traffic(
 
         # Step 5: Analyze traffic
         result = analyze_traffic(packets)
-
+        alerts = detect_anomalies(packets, result)
     except HTTPException:
         raise
 
@@ -130,6 +130,7 @@ async def analyze_uploaded_traffic(
             db=db,
             filename=filename,
             result=result,
+            alerts=alerts,
         )
 
     except Exception as exc:
@@ -143,6 +144,8 @@ async def analyze_uploaded_traffic(
         "analysis_id": analysis.id,
         "filename": analysis.filename,
         **result,
+        "alert_count": len(alerts),
+        "alerts": alerts,
     }
 
 
@@ -220,4 +223,23 @@ def get_analysis_detail(
                 key=lambda m: m.timestamp,
             )
         ],
+        
+        "alert_count": len(analysis.alerts),
+
+        "alerts": [
+            {
+                "id": alert.id,
+                "alert_type": alert.alert_type,
+                "severity": alert.severity,
+                "source_ip": alert.source_ip,
+                "description": alert.description,
+                "detected_at": (
+                    alert.detected_at.isoformat() + "Z"
+                    if alert.detected_at is not None
+                    else None
+                ),
+            }
+            for alert in analysis.alerts
+        ],
+
     }

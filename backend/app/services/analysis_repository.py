@@ -8,6 +8,7 @@ from app.database.models import (
     Analysis,
     Flow,
     TrafficMetric,
+    SecurityAlert,
 )
 
 
@@ -15,6 +16,7 @@ def save_analysis(
     db: Session,
     filename: str,
     result: dict,
+    alerts: list[dict] | None = None,
 ) -> Analysis:
     analysis = Analysis(
         filename=filename,
@@ -49,6 +51,24 @@ def save_analysis(
             )
         )
 
+    for alert in alerts or []:
+        detected_at = alert.get("detected_at")
+
+        if detected_at is not None:
+            detected_at = datetime.fromisoformat(
+                detected_at
+            ).replace(tzinfo=None)
+
+        analysis.alerts.append(
+            SecurityAlert(
+                alert_type=alert["alert_type"],
+                severity=alert["severity"],
+                source_ip=alert["source_ip"],
+                description=alert["description"],
+                detected_at=detected_at,
+            )
+        )
+
     try:
         db.add(analysis)
         db.commit()
@@ -78,6 +98,7 @@ def get_analysis(
         .options(
             selectinload(Analysis.flows),
             selectinload(Analysis.metrics),
+            selectinload(Analysis.alerts),
         )
         .where(Analysis.id == analysis_id)
     )

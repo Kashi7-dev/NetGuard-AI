@@ -32,6 +32,10 @@ class Analysis(Base):
         back_populates="analysis",
         cascade="all, delete-orphan",
     )
+    alerts: Mapped[list["SecurityAlert"]] = relationship(
+    back_populates="analysis",
+    cascade="all, delete-orphan",
+)
 
 
 class Flow(Base):
@@ -79,4 +83,33 @@ class TrafficMetric(Base):
 
     analysis: Mapped["Analysis"] = relationship(
         back_populates="metrics"
+    )
+
+class SecurityAlert(Base):
+    __tablename__ = "security_alerts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    analysis_id: Mapped[int] = mapped_column(
+        ForeignKey("analyses.id"),
+        index=True,
+    )
+
+    alert_type: Mapped[str] = mapped_column(String(50))
+    severity: Mapped[str] = mapped_column(String(20))
+
+    source_ip: Mapped[str | None] = mapped_column(
+        String(45),
+        nullable=True,
+    )
+
+    description: Mapped[str] = mapped_column(String(500))
+
+    detected_at: Mapped[datetime | None] = mapped_column(
+        DateTime,
+        nullable=True,
+    )
+
+    analysis: Mapped["Analysis"] = relationship(
+        back_populates="alerts",
     )
